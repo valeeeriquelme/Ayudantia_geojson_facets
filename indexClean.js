@@ -1,6 +1,9 @@
-/*
-Size constants
-*/
+/********************************************************************
+Constantes de tamaño:
+Acá vamos a dejar las constantes ocupadas para obtener el tamaño de 
+los elementos donde se van a dibujar los mapas y los gráficos.
+*********************************************************************/
+
 
 const WIDTH = document.getElementById("vis1").clientWidth;
 const HEIGHT = document.getElementById("vis1").clientHeight;
@@ -11,48 +14,56 @@ const margin = { top: 50, right: 50, bottom: 50, left: 50 };
 const width = WIDTH - margin.left - margin.right;
 const height = HEIGHT - margin.top - margin.bottom;
 
-/*
-Other variants
-*/
+/********************************************************************
+Otras variables globales
+*********************************************************************/
 
-let lastFilled = 1;
+// Variable que nos va a ayudar a saber si el último país 
+// que se dibujó fue en el vis2 o en el vis3
+let lastUsed = 1;
+
+/********************************************************************
+Proyecciones
+*********************************************************************/
+const projectionWinkel3 = d3.geoWinkel3();
+const projectionMercator = d3.geoMercator();
 
 
-/* 
-Functions
-*/
+/******************************************************************** 
+Funciones
+*********************************************************************/
 
-// This function loads the data
+// Función que carga los datos de los archivos .csv y .json
 async function initialLoad() {
     const countries = await d3.json("./data/countries.geojson");
     const starbucks = await d3.csv("./data/starbucks.csv");
     return { countries, starbucks };
 }
 
-// This function gets the number of starbucks in each country and returns and array of objects with 
-// the country name and the number of starbucks
+// Función para obtener el número de tiendas por país
 function totalStarbucksByCountry(starbucksData) {
     const sumByCountry = d3.rollup(starbucksData, v => v.length, d => d.countryCode);
     const starbucksByCountryArray = Array.from(sumByCountry, ([countryCode, total]) => ({ countryCode, total }));
     return starbucksByCountryArray;
 }
 
+// Función para desplegar un país con sus respectivas tiendas 
 function displayCountry(d, vis, starbucksData) {
-    console.log(d);
     const countryCode = d.properties.ISO_A2;
-    // if (countryCode === "US") {
 
-    //     // filter countries to get the usa path 
-
+    // Agregamos el svg al vis correspondiente
     const svg = d3.select(`${vis}`)
                     .append("svg")
                     .attr("width", WIDTH2)
                     .attr("height", HEIGHT2);
-
-    const map = svg.append("g")
-        .attr('id', 'topCountryMap')
     
-    const pointsGroup = svg.append("g")
+    // Agregamos el grupo mapa que va a contener al path del país
+    const map = svg.append("g")
+                    .attr('id', 'countryMap')
+    
+    // Agregamos el grupo tiendas que va a contener a las tiendas representadas
+    // como círculos
+    const circlesGroup = svg.append("g")
                     .attr('id', 'topCountryPoints')
 
 
@@ -90,15 +101,15 @@ function displayCountry(d, vis, starbucksData) {
 // Check if value is USA, and if it is, display the cities in vis2 and vis3
 async function checkUSA(countryCode, d, starbucksData) {
     //check if there is a svg element in vis2
-    if(lastFilled == 0){
+    if(lastUsed == 0){
         d3.select("#vis3").select("svg").remove();
         displayCountry(d, "#vis3", starbucksData);
-        lastFilled = 1;
+        lastUsed = 1;
     }
     else{
         d3.select("#vis2").select("svg").remove();
         displayCountry(d, "#vis2", starbucksData);
-        lastFilled = 0;
+        lastUsed = 0;
     }
 
 }
@@ -108,7 +119,7 @@ async function checkUSA(countryCode, d, starbucksData) {
 Projections
 */
 
-const projectionWinkel3 = d3.geoWinkel3();
+
 //const projection = d3.geoMercator();
 
 /*
