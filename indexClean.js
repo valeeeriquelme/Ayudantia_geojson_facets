@@ -27,104 +27,11 @@ Proyecciones
 *********************************************************************/
 const projectionWinkel3 = d3.geoWinkel3();
 const projectionMercator = d3.geoMercator();
-
+const pathGenerator = d3.geoPath()
 
 /******************************************************************** 
-Funciones
+Escalas
 *********************************************************************/
-
-// Función que carga los datos de los archivos .csv y .json
-async function initialLoad() {
-    const countries = await d3.json("./data/countries.geojson");
-    const starbucks = await d3.csv("./data/starbucks.csv");
-    return { countries, starbucks };
-}
-
-// Función para obtener el número de tiendas por país
-function totalStarbucksByCountry(starbucksData) {
-    const sumByCountry = d3.rollup(starbucksData, v => v.length, d => d.countryCode);
-    const starbucksByCountryArray = Array.from(sumByCountry, ([countryCode, total]) => ({ countryCode, total }));
-    return starbucksByCountryArray;
-}
-
-// Función para desplegar un país con sus respectivas tiendas 
-function displayCountry(d, vis, starbucksData) {
-    const countryCode = d.properties.ISO_A2;
-
-    // Agregamos el svg al vis correspondiente
-    const svg = d3.select(`${vis}`)
-                    .append("svg")
-                    .attr("width", WIDTH2)
-                    .attr("height", HEIGHT2);
-    
-    // Agregamos el grupo mapa que va a contener al path del país
-    const map = svg.append("g")
-                    .attr('id', 'countryMap')
-    
-    // Agregamos el grupo tiendas que va a contener a las tiendas representadas
-    // como círculos
-    const circlesGroup = svg.append("g")
-                    .attr('id', 'topCountryPoints')
-
-
-    //     // define a projection
-    const projectionWinkel3 = d3.geoMercator()
-    projectionWinkel3.fitSize([WIDTH2, HEIGHT2], d);
-    const pathGenerator = d3.geoPath().projection(projectionWinkel3);
-
-    // For every country we create a g element to group his path and bubble 
-    const countryNodes = map.selectAll("country")
-        .data([d])
-        .enter()
-        .append("path")
-        .attr("d", pathGenerator)
-        .attr("fill", "lightgrey")
-        .attr("opacity", 0.6)
-        .attr("stroke", "black")
-    
-    //add points in the map by latitude and longitude
-    const points = pointsGroup.selectAll("circle")
-        .data(starbucksData)
-        .enter()
-        .filter(d => countryCode === d.countryCode)
-        .append("circle")
-        .attr("cx", d => projectionWinkel3([d.longitude, d.latitude])[0])
-        .attr("cy", d => projectionWinkel3([d.longitude, d.latitude])[1])
-        .attr("r", 2)
-        .attr("fill", "red")
-        .attr("opacity", 0.6)
-        .attr("stroke", "black")
-
-    
-}
-
-// Check if value is USA, and if it is, display the cities in vis2 and vis3
-async function checkUSA(countryCode, d, starbucksData) {
-    //check if there is a svg element in vis2
-    if(lastUsed == 0){
-        d3.select("#vis3").select("svg").remove();
-        displayCountry(d, "#vis3", starbucksData);
-        lastUsed = 1;
-    }
-    else{
-        d3.select("#vis2").select("svg").remove();
-        displayCountry(d, "#vis2", starbucksData);
-        lastUsed = 0;
-    }
-
-}
-
-
-/* 
-Projections
-*/
-
-
-//const projection = d3.geoMercator();
-
-/*
-Scales
-*/
 
 function logScale(data, min, max) {
     const scale = d3.scaleLog()
@@ -147,78 +54,171 @@ function sqrtScale(data, min, max) {
     return scale;
 }
 
-const svg = d3.select("#vis1")
-    .append("svg")
-    .attr("width", WIDTH)
-    .attr("height", HEIGHT);
+/******************************************************************** 
+Funciones
+*********************************************************************/
 
-const map = svg.append("g")
-    .attr('id', 'map')
-    .attr("transform", `translate(${margin.left}, ${margin.top})`);
+// Función que carga los datos de los archivos .csv y .json
+async function initialLoad() {
+    const countries = await d3.json("./data/countries.geojson");
+    const starbucks = await d3.csv("./data/starbucks.csv");
+    return { countries, starbucks };
+}
 
-const countriesGroup = map.append("g")
-    .attr("id", "countries");
-
-const boundingRect = map.append("rect")
-    .attr("id", "bounding-rect")
-    .attr("width", width)
-    .attr("height", height)
-    .attr("fill", "none")
-    .attr("stroke", "black");
-
-
-/*
-Main
-*/
-
-//Create first visualization: static map
-initialLoad().then(data => {
-    const { countries, starbucks } = data;
-    console.log(countries);
-
-    const starbucksByCountry = totalStarbucksByCountry(starbucks);
+// Función para obtener el número de tiendas por país
+function totalStarbucksByCountry(starbucksData) {
+    const sumByCountry = d3.rollup(starbucksData, v => v.length, d => d.countryCode);
+    const starbucksByCountry = Array.from(sumByCountry, ([countryCode, total]) => ({ countryCode, total }));
     const starbucksByCountryDict = {}
     starbucksByCountry.forEach(d => {
         starbucksByCountryDict[d.countryCode] = d.total;
     })
+    
+    return {starbucksByCountry, starbucksByCountryDict};
+}
 
-    projectionWinkel3.fitSize([width, height], countries);
-    const pathGenerator = d3.geoPath().projection(projectionWinkel3);
+// Función para desplegar un país con sus respectivas tiendas 
+function displayCountry(d, vis, starbucksData) {
 
-    // For every country we create a g element to group his path and bubble 
-    const countryNodes = countriesGroup.selectAll("country")
-        .data(countries.features)
+    const countryCode = d.properties.ISO_A2;
+
+    // Agregamos el svg al vis correspondiente
+    const svg = d3.select(`${vis}`)
+                    .append("svg")
+                    .attr("width", WIDTH2)
+                    .attr("height", HEIGHT2);
+    
+    // Agregamos el grupo mapa que va a contener al path del país
+    const map = svg.append("g")
+                    .attr('class', 'countryMap')
+    
+    // Agregamos el grupo tiendas que va a contener a las tiendas representadas
+    // como círculos
+    const circlesGroup = svg.append("g")
+                    .attr('class', 'storePoints')
+
+    // Definimos la proyección
+    const projection = projectionWinkel3.fitSize([WIDTH2, HEIGHT2], d);
+    
+    // Definimos el path generator
+    const path = pathGenerator.projection(projection);
+
+    //Agregamos el path del país al mapa
+    map.selectAll("countryPath")
+        .data([d])
         .enter()
-        .append("g")
-        .attr("class", "country")
-
-    countryNodes.append("path")
-        .attr("d", pathGenerator)
+        .append("path")
+        .attr("d", path)
         .attr("fill", "lightgrey")
         .attr("opacity", 0.6)
         .attr("stroke", "black")
 
-    // Crear una escala logaritmica
-    const scale = logScale(starbucksByCountry, 1, 20);
-
-    // Filtrar los G para solo quedarme con aquellos cuya data esté en starbucksByCountryDict
-    countryNodes
-        .filter(feature => feature.properties.ISO_A2 in starbucksByCountryDict)
+    // Filtramos los datos de starbucks para quedarnos solo con los del país
+    // seleccionado y luego agregamos los círculos/puntos correspondientes a 
+    // cada tienda de ese país 
+    circlesGroup.selectAll("circle")
+        .data(starbucksData)
+        .enter()
+        .filter(d => countryCode === d.countryCode)
         .append("circle")
-        .attr("cx", d => pathGenerator.centroid(d.geometry)[0])
-        .attr("cy", d => pathGenerator.centroid(d.geometry)[1])
-        .attr("r", function (d) {
-            return scale(starbucksByCountryDict[d.properties.ISO_A2]);
-        })
-        .attr("id", function (d) {
-            return d.properties.ISO_A2;
-        })
-        .style("fill", "#00704A")
-        .style("opacity", 0.5)
+        .attr("cx", d => projection([d.longitude, d.latitude])[0])
+        .attr("cy", d => projection([d.longitude, d.latitude])[1])
+        .attr("r", 2)
+        .attr("fill", "red")
+        .attr("opacity", 0.6)
+        .attr("stroke", "black")   
+}
 
-    // Add onclick action to country nodes 
-    countryNodes.on("click", function (e, d) {
-        console.log(d.properties.ADMIN, d.properties.ISO_A2);
-        checkUSA(d.properties.ISO_A2, d, starbucks);
-    });
+// Revisa donde fue agregada la última visualización de país y según eso 
+// agrega la nueva visualización en la otra área
+function chooseVisArea(d, starbucksData) {
+    //check if there is a svg element in vis2
+    if(lastUsed == 0){
+        // Eliminar el svg del área
+        d3.select("#vis3").select("svg").remove();
+        // Dibujar el país en el área
+        displayCountry(d, "#vis3", starbucksData);
+        lastUsed = 1;
+    }
+    else{
+        d3.select("#vis2").select("svg").remove();
+        displayCountry(d, "#vis2", starbucksData);
+        lastUsed = 0;
+    }
+
+}
+
+function displayWorldMap(countries, starbucks){
+
+    const {starbucksByCountry, starbucksByCountryDict} = totalStarbucksByCountry(starbucks);
+
+    const svg = d3.select("#vis1")
+        .append("svg")
+        .attr("width", WIDTH)
+        .attr("height", HEIGHT);
+
+    const countriesGroup = svg.append("g")
+                            .attr("id", "worldMap")
+                            .attr("transform", `translate(${margin.left}, ${margin.top})`);
+
+
+    svg.append("rect")
+        .attr("id", "bounding-rect")
+        .attr("width", width)
+        .attr("height", height)
+        .attr("transform", `translate(${margin.left}, ${margin.top})`)
+        .attr("fill", "none")
+        .attr("stroke", "black");
+
+        const projection = projectionWinkel3.fitSize([width, height], countries);
+        const path = pathGenerator.projection(projection);
+    
+        // Para cada país, agregamos un g que va a contener el path del país
+        // y una burbuja asociada al número de tiendas de ese país
+        const countryNodes = countriesGroup.selectAll("country")
+            .data(countries.features)
+            .enter()
+            .append("g")
+            .attr("class", "country")
+    
+        countryNodes.append("path")
+            .attr("d", path)
+            .attr("fill", "lightgrey")
+            .attr("opacity", 0.6)
+            .attr("stroke", "black")
+    
+        // Setear los valores de la escala logaritmica
+        const scale = logScale(starbucksByCountry, 1, 20);
+    
+        // Filtrar los G para solo quedarme con aquellos cuya data esté en starbucksByCountryDict
+        countryNodes
+            .filter(feature => feature.properties.ISO_A2 in starbucksByCountryDict)
+            .append("circle")
+            .attr("cx", d => path.centroid(d.geometry)[0])
+            .attr("cy", d => path.centroid(d.geometry)[1])
+            .attr("r", function (d) {
+                return scale(starbucksByCountryDict[d.properties.ISO_A2]);
+            })
+            .attr("id", function (d) {
+                return d.properties.ISO_A2;
+            })
+            .style("fill", "#00704A")
+            .style("opacity", 0.5)
+    
+        // Agregar evento gatillado por click
+        countryNodes.on("click", function (e, d) {
+            console.log(d.properties.ADMIN, d.properties.ISO_A2);
+            chooseVisArea(d, starbucks);
+        });
+}
+
+/******************************************************************** 
+Main
+*********************************************************************/
+
+initialLoad().then(data => {
+    const { countries, starbucks } = data;
+    console.log(countries);
+
+    displayWorldMap(countries, starbucks);
 });
