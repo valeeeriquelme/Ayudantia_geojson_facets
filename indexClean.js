@@ -15,6 +15,35 @@ const width = WIDTH - margin.left - margin.right;
 const height = HEIGHT - margin.top - margin.bottom;
 
 /********************************************************************
+Añadir svg "estático" para los mapas en el facet container
+*********************************************************************/
+const svgTopCountry = d3.select("#vis2")
+.append("svg")
+.attr("width", WIDTH2)
+.attr("height", HEIGHT2);
+
+const svgBottomCountry = d3.select("#vis3")
+.append("svg")
+.attr("width", WIDTH2)
+.attr("height", HEIGHT2);
+
+// Agregamos el grupo mapa que va a contener al path del país
+const mapTopCountry = svgTopCountry.append("g")
+.attr('class', 'countryMap')
+
+const mapBottomCountry = svgBottomCountry.append("g")
+.attr('class', 'countryMap')
+
+// Agregamos el grupo tiendas que va a contener a las tiendas representadas
+// como círculos
+const circlesGroupTop = svgTopCountry.append("g")
+.attr('class', 'storePoints')
+
+const circlesGroupBottom = svgBottomCountry.append("g")
+.attr('class', 'storePoints')
+
+
+/********************************************************************
 Otras variables globales
 *********************************************************************/
 
@@ -79,71 +108,89 @@ function totalStarbucksByCountry(starbucksData) {
 
 // Función para desplegar un país con sus respectivas tiendas 
 function displayCountry(d, vis, starbucksData) {
-
-    const countryCode = d.properties.ISO_A2;
-
-    // Agregamos el svg al vis correspondiente
-    const svg = d3.select(`${vis}`)
-                    .append("svg")
-                    .attr("width", WIDTH2)
-                    .attr("height", HEIGHT2);
-    
-    // Agregamos el grupo mapa que va a contener al path del país
-    const map = svg.append("g")
-                    .attr('class', 'countryMap')
-    
-    // Agregamos el grupo tiendas que va a contener a las tiendas representadas
-    // como círculos
-    const circlesGroup = svg.append("g")
-                    .attr('class', 'storePoints')
-
     // Definimos la proyección
     const projection = projectionWinkel3.fitSize([WIDTH2, HEIGHT2], d);
     
     // Definimos el path generator
     const path = pathGenerator.projection(projection);
 
+    if(vis){
     //Agregamos el path del país al mapa
-    map.selectAll("countryPath")
-        .data([d])
-        .enter()
-        .append("path")
-        .attr("d", path)
-        .attr("fill", "lightgrey")
-        .attr("opacity", 0.6)
-        .attr("stroke", "black")
-
-    // Filtramos los datos de starbucks para quedarnos solo con los del país
-    // seleccionado y luego agregamos los círculos/puntos correspondientes a 
-    // cada tienda de ese país 
-    circlesGroup.selectAll("circle")
-        .data(starbucksData)
-        .enter()
-        .filter(d => countryCode === d.countryCode)
-        .append("circle")
-        .attr("cx", d => projection([d.longitude, d.latitude])[0])
-        .attr("cy", d => projection([d.longitude, d.latitude])[1])
-        .attr("r", 2)
-        .attr("fill", "red")
-        .attr("opacity", 0.6)
-        .attr("stroke", "black")   
+    mapBottomCountry.selectAll("path")
+        .data([d], function(D) { 
+            console.log(D.properties.ISO_A2)
+            return D.properties.ISO_A2; })
+        .join(
+            enter => enter.append("path")
+                            .attr("d", path)
+                            .attr("class", "countryPath")
+                            .transition().duration(1000)
+                            .attr("fill", "lightgrey")
+                            .attr("opacity", 0.6)
+                            .attr("stroke", "black"),
+            update => update,
+            exit => exit.transition().duration(1000).style("opacity", 0).remove()         
+        )
+    circlesGroupBottom.selectAll("circle")
+        .data(starbucksData, d => d.storeNumber)
+        .join(
+            enter => enter.append("circle")
+                        .attr("cx", d => projection([d.longitude, d.latitude])[0])
+                        .attr("cy", d => projection([d.longitude, d.latitude])[1])
+                        .attr("r", 2)
+                        .transition().duration(1000)
+                        .attr("fill", "#362415")
+                        .attr("opacity", 0.6)
+                        .attr("stroke", "black"),
+            update => update,
+            exit => exit.transition().duration(1000).style("opacity", 0).remove())
+    }
+    else{
+    //Agregamos el path del país al mapa
+    mapTopCountry.selectAll("path")
+        .data([d], D => D.properties.ISO_A2)
+        .join(
+            enter => enter.append("path")
+                            .attr("d", path)
+                            .attr("class", "countryPath")
+                            .transition().duration(1000)
+                            .attr("fill", "lightgrey")
+                            .attr("opacity", 0.6)
+                            .attr("stroke", "black"),
+            update => update,
+            exit => exit.transition().duration(1000).style("opacity", 0).remove()         
+        )
+    circlesGroupTop.selectAll("circle")
+        .data(starbucksData, d => d.storeNumber)
+        .join( 
+            enter => enter.append("circle")
+                        .attr("cx", d => projection([d.longitude, d.latitude])[0])
+                        .attr("cy", d => projection([d.longitude, d.latitude])[1])
+                        .attr("r", 2)
+                        .transition().duration(1000)
+                        .attr("fill", "#362415")
+                        .attr("opacity", 0.6)
+                        .attr("stroke", "black"),
+            update => update,
+            exit => exit.transition().duration(1000).style("opacity", 0).remove())       
+    }
+   
 }
 
 // Revisa donde fue agregada la última visualización de país y según eso 
 // agrega la nueva visualización en la otra área
-function chooseVisArea(d, starbucksData) {
+function chooseVisArea(country, starbucksData) {
     //check if there is a svg element in vis2
     if(lastUsed == 0){
-        // Eliminar el svg del área
-        d3.select("#vis3").select("svg").remove();
-        // Dibujar el país en el área
-        displayCountry(d, "#vis3", starbucksData);
-        lastUsed = 1;
+        //filtrar los starbucks a los del país correspondientes
+        const filteredStarbucks = starbucksData.filter(store => store.countryCode == country.properties.ISO_A2);
+        displayCountry(country, 1, filteredStarbucks);
+        lastUsed = 1;          
     }
     else{
-        d3.select("#vis2").select("svg").remove();
-        displayCountry(d, "#vis2", starbucksData);
-        lastUsed = 0;
+        const filteredStarbucks = starbucksData.filter(store => store.countryCode == country.properties.ISO_A2);
+        displayCountry(country, 0, filteredStarbucks);
+        lastUsed = 0;     
     }
 
 }
@@ -177,8 +224,7 @@ function displayWorldMap(countries, starbucks){
         // y una burbuja asociada al número de tiendas de ese país
         const countryNodes = countriesGroup.selectAll("country")
             .data(countries.features)
-            .enter()
-            .append("g")
+            .join("g")
             .attr("class", "country")
     
         countryNodes.append("path")
